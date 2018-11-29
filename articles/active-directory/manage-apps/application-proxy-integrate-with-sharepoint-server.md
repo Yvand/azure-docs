@@ -12,7 +12,7 @@ ms.workload: identity
 ms.tgt_pltfrm: na
 ms.devlang: na
 ms.topic: conceptual
-ms.date: 11/28/2018
+ms.date: 11/29/2018
 ms.author: barbkess
 ms.reviewer: japere
 ms.custom: it-pro
@@ -94,9 +94,11 @@ The easiest way for you to set SPNs is to follow the SPN formats that may alread
  When you do, the relevant set of Kerberos tickets is cached on the machine. These tickets contain the SPN of the target site that you browsed to.
 
 2. You can pull the SPN for that site by using a tool called [Klist](https://web.mit.edu/kerberos/krb5-devel/doc/user/user_commands/klist.html). In a command window that's running in the same context as the user who accessed the site in the browser, run the following command:
+
 ```
 Klist
 ```
+
 Klist then returns the set of target SPNs. In this example, the highlighted value is the SPN that's needed:
 
   ![Example Klist results](./media/application-proxy-integrate-with-sharepoint-server/remote-sharepoint-target-service.png)
@@ -138,8 +140,8 @@ To configure the KCD, repeat the following steps for each connector machine:
 Now that you’ve enabled SharePoint for Kerberos and configured KCD, you're ready to publish the SharePoint farm for remote access through Azure AD Application Proxy.
 
 1. Publish your SharePoint site with the following settings. For step-by-step instructions, see [Publishing applications using Azure AD Application Proxy](application-proxy-publish-azure-portal.md). 
-   * **Internal URL**: the URL of the SharePoint site internally, such as **https://SharePoint/**. In this example, make sure to use **https**
-   * **Preauthentication Method**: Azure Active Directory
+   * **Internal URL**: the URL of the SharePoint site internally, such as **<https://SharePoint/>**. In this example, make sure to use **https**
+   * **Pre-authentication Method**: Azure Active Directory
    * **Translate URL in Headers**: NO
 
    >[!TIP]
@@ -162,7 +164,7 @@ Now that you’ve enabled SharePoint for Kerberos and configured KCD, you're rea
 
 Next step is to extend SharePoint web application to a new zone, configured with Kerberos and the appropriate alternate access mapping to allow SharePoint to handle incoming requests sent to the Internal URL, and respond with links built for the External URL.
 
-1. Start the **SharePoint Mamangement Shell**.
+1. Start the **SharePoint Management Shell**.
 2. Run the following script to extend the web application to Extranet zone and enable Kerberos authentication:
 
 ```powershell
