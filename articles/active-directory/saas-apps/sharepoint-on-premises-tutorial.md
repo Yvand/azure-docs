@@ -16,21 +16,22 @@ ms.author: jeedes
 
 ## Scenario description
 
-In this tutorial, you configure a federated authentication between Azure Active Directory and SharePoint on-premises. The goal is to allow users to access the sites in SharePoint on-premises by signing-in on Azure Active Directory.
+In this tutorial, you configure a federated authentication between Azure Active Directory and SharePoint on-premises. The goal is to allow users to sign-in on Azure Active Directory and use their identity to access the SharePoint on-premises sites.
 
 ## Prerequisites
 
 To perform the configuration, you need the following resources:
-* An Azure AD subscription. If you don't have an Azure AD environment, you can create a [free account](https://azure.microsoft.com/free/).
+* An Azure Active Directory tenant. If you don't have one, you can create a [free account](https://azure.microsoft.com/free/).
 * A SharePoint 2013 farm or newer.
 
 This article uses the following values:
-- Name of the enterprise application: `SharePoint corporate farm`
-- Identifier (in Azure AD) / realm (in SharePoint): `urn:sharepoint:azuread`
-- loginUrl: `https://login.microsoftonline.com/e8c4b3ba-d1bf-489e-aafa-6e2ce9c90b23/wsfed`
+- Enterprise application name (in Azure AD): `SharePoint corporate farm`
+- Trust identifier (in Azure AD) / realm (in SharePoint): `urn:sharepoint:federation`
+- loginUrl (to Azure AD): `https://login.microsoftonline.com/dc38a67a-f981-4e24-ba16-4443ada44484/wsfed`
 - SharePoint URL: `https://spsites.contoso.local/`
 - SharePoint reply URL: `https://spsites.contoso.local/_trust/`
 - SharePoint trust configuration name: `AzureADTrust`
+- userprincipalname of the Azure AD test user: `AzureUser1@TENANT.onmicrosoft.com`
 
 ## Configure an enterprise application in Azure Active Directory
 
@@ -42,21 +43,21 @@ To configure the federation in Azure AD, you need to create a dedicated Enterpri
 1. Go to **Enterprise applications**, and then select **All applications**.
 1. To add a new application, select **New application** at the top of the dialog box.
 1. In the search box, enter **SharePoint on-premises**. Select **SharePoint on-premises** from the result pane.
-1. Specify a name for your application, and click **Create** to add the application.
-1. In the new enterprise application, select **Properties**, and check the value for **User assignment required?**. For this scenario, set the value to **No** and click **Save**.
+1. Specify a name for your application (in this tutorial, it is `SharePoint corporate farm`), and click **Create** to add the application.
+1. In the new enterprise application, select **Properties**, and check the value for **User assignment required?**. For this scenario, set its value to **No** and click **Save**.
 
 ### Configure the enterprise application
 
 In this section, you configure the SAML authentication and define the claims that will be sent to SharePoint upon successful authentication.
 
-1. In the enterprise application, and select **2. Set up single sign-on** and choose the **SAML** in the next dialog.
+1. In the Overview of the Enterprise application, select **2. Set up single sign-on** and choose the **SAML** in the next dialog.
  
 1. On the **Set up Single Sign-On with SAML** page, select the **Edit** icon in the **Basic SAML Configuration** pane.
 
 1. In the **Basic SAML Configuration** section, follow these steps:
 
     1. In the **Identifier** box, enter a value that respects this pattern:
-    `urn:sharepoint:azuread`.
+    `urn:sharepoint:federation`.
 
     1. In the **Reply URL** box, enter a URL by using this pattern:
     `https://spsites.contoso.local/_trust/`.
@@ -85,10 +86,10 @@ In this section, you configure the SAML authentication and define the claims tha
 In this step, you create a SPTrustedLoginProvider to store the configuration needed by SharePoint to trust Azure AD. For that, you need the information from Azure AD that you copied above. Start the SharePoint Management Shell and run the following script to create it:
 
 ```powershell
-# Path to the public key of the Azure AD SAML signing certificate (self-signed), downloaded from Azure AD
+# Path to the public key of the Azure AD SAML signing certificate (self-signed), downloaded from the Enterprise application in the Azure AD portal
 $signingCert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2("C:\Data\Claims\AzureAD Signing.cer")
-# Unique realm (corresponds to the "Identifier (Entity ID)" in the Azure AD enterprise application)
-$realm = "urn:contoso:spsites"
+# Unique realm (corresponds to the "Identifier (Entity ID)" in the Azure AD Enterprise application)
+$realm = "urn:sharepoint:federation"
 # Login URL copied from the Azure AD enterprise application. Make sure to replace "saml2" with "wsfed" at the end of the URL:
 $loginUrl = "https://login.microsoftonline.com/e8c4b3ba-d1bf-489e-aafa-6e2ce9c90b23/wsfed"
 
@@ -105,13 +106,13 @@ $trust = New-SPTrustedIdentityTokenIssuer -Name "AzureADTrust" -Description "Azu
 
 ### Configure the SharePoint web application
 
-In this step you configure a web application in SharePoint to trust the Azure AD application created above. There are important rules to have in mind:
+In this step you configure a web application in SharePoint to trust the Azure AD Enterprise application created above. There are important rules to have in mind:
 - The default zone of the SharePoint web application must have Windows authentication enabled. This is required for the Search crawler.
 - The SharePoint URL that will use Azure AD authentication must be be set with HTTPS.
 
 1. Create the web application and/or the zone: There are 2 possible configurations:
 
-	- If you create a new web application and use both Windows and AD FS authentication in the Default zone:
+	- If you create a new web application and use both Windows and Azure AD authentication in the Default zone:
 
         1. Start the **SharePoint Management Shell** and run the following script:
             ```powershell
@@ -177,6 +178,8 @@ In this step you configure a web application in SharePoint to trust the Azure AD
     > [!NOTE]
     > If you have multiple Web Front End servers, you need to repeat this operation on each of them.
 
+
+### Test sign-in with an Azure AD user
 
 
 
