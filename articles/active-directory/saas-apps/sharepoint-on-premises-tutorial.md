@@ -56,7 +56,7 @@ In this section, you configure the SAML authentication and define the claims tha
 
 1. In the **Basic SAML Configuration** section, follow these steps:
 
-    1. In the **Identifier** box, enter a value that respects this pattern:
+    1. In the **Identifier** box, ensure that this value is present:
     `urn:sharepoint:federation`.
 
     1. In the **Reply URL** box, enter a URL by using this pattern:
@@ -67,12 +67,14 @@ In this section, you configure the SAML authentication and define the claims tha
 	
     1. Select **Save**.
     1. The settings should look like this:
+    
+        ![Basic SAML settings](./media/sharepoint-on-premises-tutorial/aad-app-saml-ids.png)
 
 1. Copy the information that you will need later to configure SharePoint:
 
-	- In the **SAML Signing Certificate** section, **Download** the **Certificate (Base64)**. This is the signing certificate used by Azure AD to sign the SANK token. SharePoint will need this public key to verify the integrity of the incoming SAML tokens.
+	- In the **SAML Signing Certificate** section, **Download** the **Certificate (Base64)**. This is the public key of the signing certificate used by Azure AD to sign the SAML token. SharePoint will need it to verify the integrity of the incoming SAML tokens.
 
-	- In the **Set up SharePoint corporate farm** section, copy the **Login URL** and replace **/saml2** with **/wsfed**
+	- In the **Set up SharePoint corporate farm** section, copy the **Login URL** in a notepad and replace the trailing string **/saml2** with **/wsfed**
 	 
 	> [!NOTE]
     > Make sure to replace **/saml2** with **/wsfed** to ensure that Azure AD issues a SAML 1.1 token, as required by SharePoint.
@@ -83,22 +85,22 @@ In this section, you configure the SAML authentication and define the claims tha
 
 ### Create the trust in SharePoint
 
-In this step, you create a SPTrustedLoginProvider to store the configuration needed by SharePoint to trust Azure AD. For that, you need the information from Azure AD that you copied above. Start the SharePoint Management Shell and run the following script to create it:
+In this step, you create a SPTrustedLoginProvider to store the configuration that SharePoint needs to trust Azure AD. For that, you need the information from Azure AD that you copied above. Start the SharePoint Management Shell and run the following script to create it:
 
 ```powershell
 # Path to the public key of the Azure AD SAML signing certificate (self-signed), downloaded from the Enterprise application in the Azure AD portal
-$signingCert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2("C:\Data\Claims\AzureAD Signing.cer")
+$signingCert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2("C:\AAD app\SharePoint corporate farm.cer")
 # Unique realm (corresponds to the "Identifier (Entity ID)" in the Azure AD Enterprise application)
 $realm = "urn:sharepoint:federation"
 # Login URL copied from the Azure AD enterprise application. Make sure to replace "saml2" with "wsfed" at the end of the URL:
-$loginUrl = "https://login.microsoftonline.com/e8c4b3ba-d1bf-489e-aafa-6e2ce9c90b23/wsfed"
+$loginUrl = "https://login.microsoftonline.com/dc38a67a-f981-4e24-ba16-4443ada44484/wsfed"
 
 # Define the claim types used for the authorization
 $userIdentifier = New-SPClaimTypeMapping -IncomingClaimType "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name" -IncomingClaimTypeDisplayName "name" -LocalClaimType "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn"
 $role = New-SPClaimTypeMapping "http://schemas.microsoft.com/ws/2008/06/identity/claims/role" -IncomingClaimTypeDisplayName "Role" -SameAsIncoming
 
 # Let SharePoint trust the Azure AD signing certificate
-New-SPTrustedRootAuthority -Name "Azure AD signing certificate" -Certificate $rootCert
+New-SPTrustedRootAuthority -Name "Azure AD signing certificate" -Certificate $signingCert
 
 # Create a new SPTrustedIdentityTokenIssuer in SharePoint
 $trust = New-SPTrustedIdentityTokenIssuer -Name "AzureADTrust" -Description "Azure AD" -Realm $realm -ImportTrustCertificate $signingCert -ClaimsMappings $userIdentifier, $role -SignInUrl $loginUrl -IdentifierClaim $userIdentifier.InputClaimType
@@ -110,54 +112,55 @@ In this step you configure a web application in SharePoint to trust the Azure AD
 - The default zone of the SharePoint web application must have Windows authentication enabled. This is required for the Search crawler.
 - The SharePoint URL that will use Azure AD authentication must be be set with HTTPS.
 
-1. Create the web application and/or the zone: There are 2 possible configurations:
+1. Create or extend the web application. This article describes 2 possible configurations:
 
-	- If you create a new web application and use both Windows and Azure AD authentication in the Default zone:
+	- If you create a new web application that uses both Windows and Azure AD authentication in the Default zone:
 
         1. Start the **SharePoint Management Shell** and run the following script:
             ```powershell
-            # This script creates a new web application and sets Windows and AD FS authentication on the Default zone
-            # URL of the SharePoint site federated with ADFS
+            # This script creates a new web application and sets Windows and Azure AD authentication on the Default zone
+            # URL of the SharePoint site federated with Azure AD
             $trustedSharePointSiteUrl = "https://spsites.contoso.local/"
             $applicationPoolManagedAccount = "Contoso\spapppool"
 
             $winAp = New-SPAuthenticationProvider -UseWindowsIntegratedAuthentication -DisableKerberos:$true
-            $sptrust = Get-SPTrustedIdentityTokenIssuer "Contoso.local"
+            $sptrust = Get-SPTrustedIdentityTokenIssuer "AzureADTrust"
             $trustedAp = New-SPAuthenticationProvider -TrustedIdentityTokenIssuer $sptrust    
             
-            New-SPWebApplication -Name "SharePoint - ADFS on contoso.local" -Port 443 -SecureSocketsLayer -URL $trustedSharePointSiteUrl -ApplicationPool "SharePoint - ADFS on contoso.local" -ApplicationPoolAccount (Get-SPManagedAccount $applicationPoolManagedAccount) -AuthenticationProvider $winAp, $trustedAp
+            New-SPWebApplication -Name "SharePoint - Azure AD" -Port 443 -SecureSocketsLayer -URL $trustedSharePointSiteUrl -ApplicationPool "SharePoint - Azure AD" -ApplicationPoolAccount (Get-SPManagedAccount $applicationPoolManagedAccount) -AuthenticationProvider $winAp, $trustedAp
             ```
         1. Open the **SharePoint Central Administration** site.
         1. Under **System Settings**, select **Configure Alternate Access Mappings**. The **Alternate Access Mapping Collection** box opens.
         1. Filter the display with the new web application and confirm that you see something like this:
     
-           ![Alternate Access Mappings of web application](../media/SharePointTrustedAuthN_AAM1ZoneWebapp.png)
+           ![Alternate Access Mappings of web application](./media/sharepoint-on-premises-tutorial/sp-aam-newwebapp.png)
 
-    - If you extend an existing web application to set AD FS authentication on a new zone:
+    - If you extend an existing web application to use Azure AD authentication on a new zone:
+
         1. Start the SharePoint Management Shell and run the following script:
 
             ```powershell
-            # This script extends an existing web application to set AD FS authentication on a new zone
+            # This script extends an existing web application to set Azure AD authentication on a new zone
             # URL of the default zone of the web application
             $webAppDefaultZoneUrl = "http://spsites/"
             # URL of the SharePoint site federated with ADFS
             $trustedSharePointSiteUrl = "https://spsites.contoso.local/"
-            $sptrust = Get-SPTrustedIdentityTokenIssuer "Contoso.local"
+            $sptrust = Get-SPTrustedIdentityTokenIssuer "AzureADTrust"
             $ap = New-SPAuthenticationProvider -TrustedIdentityTokenIssuer $sptrust
             $wa = Get-SPWebApplication $webAppDefaultZoneUrl
             
-            New-SPWebApplicationExtension -Name "SharePoint - ADFS on contoso.local" -Identity $wa -SecureSocketsLayer -Zone Intranet -Url $trustedSharePointSiteUrl -AuthenticationProvider $ap
+            New-SPWebApplicationExtension -Name "SharePoint - Azure AD" -Identity $wa -SecureSocketsLayer -Zone Internet -Url $trustedSharePointSiteUrl -AuthenticationProvider $ap
             ```
         
         1. Open the **SharePoint Central Administration** site.
         1. Under **System Settings**, select **Configure Alternate Access Mappings**. The **Alternate Access Mapping Collection** box opens.
         1. Filter the display with the web application that was extended and confirm that you see something like this:
     
-            ![Alternate Access Mappings of extended application](../media/SharePointTrustedAuthN_AAMExtendedWebapp.png)
+            ![Alternate Access Mappings of extended web application](./media/sharepoint-on-premises-tutorial/sp-aam-extendedzone.png)
 
-1. Create a certificate for the IIS site
+1. Create a certificate for the SharePoint site
 
-    Because SharePoint URL uses HTTPS protocol (`https://spsites.contoso.local/`), a certificate must be set on the corresponding Internet Information Services (IIS) site. Follow those steps to generate a self-signed certificates:
+    Since SharePoint URL uses HTTPS protocol (`https://spsites.contoso.local/`), a certificate must be set on the corresponding Internet Information Services (IIS) site. Follow those steps to generate a self-signed certificates:
     
     > [!IMPORTANT]
     > Self-signed certificates are suitable only for test purposes. In production environments, we strongly recommend that you use certificates issued by a certificate authority instead.
@@ -171,13 +174,14 @@ In this step you configure a web application in SharePoint to trust the Azure AD
     
 1. Set the certificate in the IIS site
     1. Open the Internet Information Services Manager console.
-    1. Expand the server in the tree view, expand **Sites**, select the **SharePoint - ADFS on contoso.local** site, and select **Bindings**.
+    1. Expand the server in the tree view, expand **Sites**, select the site **SharePoint - Azure AD**, and select **Bindings**.
     1. Select **https binding** and then select **Edit**.
-    1. In the TLS/SSL certificate field, choose **spsites.contoso.local** certificate and then select **OK**.
+    1. In the TLS/SSL certificate field, choose the certificate to use (for example, **spsites.contoso.local** created above) and select **OK**.
     
     > [!NOTE]
-    > If you have multiple Web Front End servers, you need to repeat this operation on each of them.
+    > If you have multiple Web Front End servers, you need to repeat this operation on each.
 
+The basic configuration of the trust between SharePoint and Azure AD is now finished. Let's test it by signing-in with an Azure AD user.
 
 ### Test sign-in with an Azure AD user
 
