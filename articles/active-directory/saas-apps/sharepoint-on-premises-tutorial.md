@@ -183,14 +183,11 @@ In this step you configure a web application in SharePoint to trust the Azure AD
 
 The basic configuration of the trust between SharePoint and Azure AD is now finished. Let's test it by signing-in with an Azure AD user.
 
-### Test sign-in with an Azure AD user
+## Sign-in to SharePoint site as a member user in Azure Active Directory
 
+Azure Active Directory has [2 type of users](https://docs.microsoft.com/en-us/azure/active-directory/active-directory-b2b-user-properties): Guest users and Member users. Let's start with a member user.
 
-
-
-### Create an Azure AD test user in the Azure portal
-
-The objective of this section is to create a test user in the Azure portal.
+### Create a member user in Azure Active Directory
 
 1. In the Azure portal, on the leftmost pane, select **Azure Active Directory**. In the **Manage** pane, select **Users**.
 
@@ -324,16 +321,17 @@ Once you configure SharePoint on-premises you can enforce Session Control, which
 
 ## Manage Guest users access
 
-We need to distinguish 2 types of guest accounts:
+There are 2 types of guest accounts:
 
-- B2B guest accounts: Those users are homed in an external Azure AD tenant
-- MSA guest accounts: Those users are not homed in a Azure AD tenant, for example a Microsoft account (Hotmail, Outlook) or a social account (Google.com or similar)
+- B2B guest accounts: Those users are homed in an external Azure Active Directory tenant
+- MSA guest accounts: Those users are homed in a Microsoft identify provider (Hotmail, Outlook) or a social account provider (Google.com or similar)
 
-By default, Azure AD sets the "Unique User Identifier" and the claim name to the attribute user.userprincipalname
-Unfortunately, this source attribute is ambiguous for the guest accounts. To avoid this, both claims should be updated to use the attribute user.localuserprincipalname instead.
-The table below summarizes the effect:
+By default, Azure Active Directory sets the "Unique User Identifier" and the claim name to the attribute `user.userprincipalname`.  
+Unfortunately, this source attribute is ambiguous for the guest accounts, as the table below shows:
 
-| Source attribute set for a claim in Azure AD | Value that Azure AD will set in the SAML token for B2B guests | Property set by Azure AD in the SAML token for MSA guests | Property that SharePoint can use to validate the identity |
+| Source attribute set for a claim in Azure AD | Actual property used by Azure AD for B2B guests | Actual property used by Azure AD for MSA guests | Property that SharePoint can rely-on to validate the identity |
 |--|--|--|--|
-| user.userprincipalname | mail, for example: guest@PARTNERTENANT | userprincipalname, for example: guest_outlook.com#EXT#@TENANT.onmicrosoft.com | ambiguous |
-| user.localuserprincipalname | userprincipalname, for example: guest_PARTNERTENANT#EXT#@TENANT.onmicrosoft.com | userprincipalname, for example: guest_outlook.com#EXT#@TENANT.onmicrosoft.com | userprincipalname |
+| user.userprincipalname | mail, for example: `guest@PARTNERTENANT` | userprincipalname, for example: `guest_outlook.com#EXT#@TENANT.onmicrosoft.com` | ambiguous |
+| user.localuserprincipalname | userprincipalname, for example: `guest_PARTNERTENANT#EXT#@TENANT.onmicrosoft.com` | userprincipalname, for example: `guest_outlook.com#EXT#@TENANT.onmicrosoft.com` | userprincipalname |
+
+As a conclusion, the identifier claims of the enterprise application should be updated to use the attribute `user.localuserprincipalname` instead of `user.userprincipalname`:
