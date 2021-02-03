@@ -50,7 +50,7 @@ To configure the federation in Azure AD, you need to create a dedicated Enterpri
 
 In this section, you configure the SAML authentication and define the claims that will be sent to SharePoint upon successful authentication.
 
-1. In the Overview of the Enterprise application, select **2. Set up single sign-on** and choose the **SAML** in the next dialog.
+1. In the Overview of the Enterprise application `SharePoint corporate farm`, select **2. Set up single sign-on** and choose the **SAML** in the next dialog.
  
 1. On the **Set up Single Sign-On with SAML** page, select the **Edit** icon in the **Basic SAML Configuration** pane.
 
@@ -66,15 +66,21 @@ In this section, you configure the SAML authentication and define the claims tha
     `https://spsites.contoso.local/`.
 	
     1. Select **Save**.
-    1. The settings should look like this:
-    
-        ![Basic SAML settings](./media/sharepoint-on-premises-tutorial/aad-app-saml-ids.png)
 
-1. Copy the information that you will need later to configure SharePoint:
+1. In the **User Attributes & Claims** section, delete the following claim types, which are useless since they won't be used by SharePoint to grant permissions:
+    - `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress`
+    - `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname`
+    - `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname`
+
+1. The settings should now look like this:
+
+    ![Basic SAML settings](./media/sharepoint-on-premises-tutorial/aad-app-saml-ids.png)
+
+1. Copy the information that you will need later in SharePoint:
 
 	- In the **SAML Signing Certificate** section, **Download** the **Certificate (Base64)**. This is the public key of the signing certificate used by Azure AD to sign the SAML token. SharePoint will need it to verify the integrity of the incoming SAML tokens.
 
-	- In the **Set up SharePoint corporate farm** section, copy the **Login URL** in a notepad and replace the trailing string **/saml2** with **/wsfed**
+	- In the **Set up SharePoint corporate farm** section, copy the **Login URL** in a notepad and replace the trailing string **/saml2** with **/wsfed**.
 	 
 	> [!NOTE]
     > Make sure to replace **/saml2** with **/wsfed** to ensure that Azure AD issues a SAML 1.1 token, as required by SharePoint.
@@ -335,3 +341,22 @@ Unfortunately, this attribute is ambiguous for guest accounts, as the table belo
 | `user.localuserprincipalname` | `userprincipalname`, for example: `guest_PARTNERTENANT#EXT#@TENANT.onmicrosoft.com` | `userprincipalname`, for example: `guest_outlook.com#EXT#@TENANT.onmicrosoft.com` | `userprincipalname` |
 
 As a conclusion, to ensure that guest accounts are all identified with the same attribute, the identifier claims of the enterprise application should be updated to use the attribute `user.localuserprincipalname` instead of `user.userprincipalname`:
+
+1. In the Overview of the Enterprise application `SharePoint corporate farm`, select **2. Set up single sign-on**.
+ 
+1. On the **Set up Single Sign-On with SAML** page, select the **Edit** icon in the **User Attributes & Claims** pane.
+
+1. In the **User Attributes & Claims** section, follow these steps:
+
+    1. Select **Unique User Identifier (Name ID)**, change its **Source Attribute** property to **user.localuserprincipalname**, and select **Save**.
+    
+    1. Select **http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name**, change its **Source Attribute** property to **user.localuserprincipalname**, and select **Save**.
+
+    1. Additionally, delete the following claim types, which are useless since they are not used by SharePoint:
+        - `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress`
+        - `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname`
+        - `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname`
+    
+    1. The **User Attributes & Claims** should look like this:
+    
+        ![User Attributes & Claims for Guests](./media/sharepoint-on-premises-tutorial/aad-claims-guests.png)
