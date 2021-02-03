@@ -326,12 +326,12 @@ There are 2 types of guest accounts:
 - B2B guest accounts: Those users are homed in an external Azure Active Directory tenant
 - MSA guest accounts: Those users are homed in a Microsoft identify provider (Hotmail, Outlook) or a social account provider (Google.com or similar)
 
-By default, Azure Active Directory sets the "Unique User Identifier" and the claim name to the attribute `user.userprincipalname`.  
-Unfortunately, this source attribute is ambiguous for the guest accounts, as the table below shows:
+By default, Azure Active Directory sets both the "Unique User Identifier" and the claim "name" to the attribute `user.userprincipalname`.  
+Unfortunately, this attribute is ambiguous for guest accounts, as the table below shows:
 
-| Source attribute set for a claim in Azure AD | Actual property used by Azure AD for B2B guests | Actual property used by Azure AD for MSA guests | Property that SharePoint can rely-on to validate the identity |
+| Source attribute set in Azure AD | Actual property used by Azure AD for B2B guests | Actual property used by Azure AD for MSA guests | Property that SharePoint can rely-on to validate the identity |
 |--|--|--|--|
-| user.userprincipalname | mail, for example: `guest@PARTNERTENANT` | userprincipalname, for example: `guest_outlook.com#EXT#@TENANT.onmicrosoft.com` | ambiguous |
-| user.localuserprincipalname | userprincipalname, for example: `guest_PARTNERTENANT#EXT#@TENANT.onmicrosoft.com` | userprincipalname, for example: `guest_outlook.com#EXT#@TENANT.onmicrosoft.com` | userprincipalname |
+| `user.userprincipalname` | `mail`, for example: `guest@PARTNERTENANT` | `userprincipalname`, for example: `guest_outlook.com#EXT#@TENANT.onmicrosoft.com` | ambiguous |
+| `user.localuserprincipalname` | `userprincipalname`, for example: `guest_PARTNERTENANT#EXT#@TENANT.onmicrosoft.com` | `userprincipalname`, for example: `guest_outlook.com#EXT#@TENANT.onmicrosoft.com` | `userprincipalname` |
 
-As a conclusion, the identifier claims of the enterprise application should be updated to use the attribute `user.localuserprincipalname` instead of `user.userprincipalname`:
+As a conclusion, to ensure that guest accounts are all identified with the same attribute, the identifier claims of the enterprise application should be updated to use the attribute `user.localuserprincipalname` instead of `user.userprincipalname`:
