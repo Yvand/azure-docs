@@ -31,7 +31,7 @@ This article uses the following values:
 - SharePoint URL: `https://spsites.contoso.local/`
 - SharePoint reply URL: `https://spsites.contoso.local/_trust/`
 - SharePoint trust configuration name: `AzureADTrust`
-- userprincipalname of the Azure AD test user: `AzureUser1@TENANT.onmicrosoft.com`
+- userprincipalname of the Azure AD test user: `AzureUser1@demo1984.onmicrosoft.com`
 
 ## Configure an enterprise application in Azure Active Directory
 
@@ -82,7 +82,7 @@ In this section, you configure the SAML authentication and define the claims tha
 
 	- In the **Set up SharePoint corporate farm** section, copy the **Login URL** in a notepad and replace the trailing string **/saml2** with **/wsfed**.
 	 
-	> [!NOTE]
+	> [!IMPORTANT]
     > Make sure to replace **/saml2** with **/wsfed** to ensure that Azure AD issues a SAML 1.1 token, as required by SharePoint.
 
     - In the **Set up SharePoint corporate farm** section, copy the **Logout URL**
@@ -164,6 +164,8 @@ In this step you configure a web application in SharePoint to trust the Azure AD
     
             ![Alternate Access Mappings of extended web application](./media/sharepoint-on-premises-tutorial/sp-aam-extendedzone.png)
 
+Once the web application is created, you can create a root site collection and add you Windows account as the primary site collection administrator.
+
 1. Create a certificate for the SharePoint site
 
     Since SharePoint URL uses HTTPS protocol (`https://spsites.contoso.local/`), a certificate must be set on the corresponding Internet Information Services (IIS) site. Follow those steps to generate a self-signed certificates:
@@ -187,11 +189,11 @@ In this step you configure a web application in SharePoint to trust the Azure AD
     > [!NOTE]
     > If you have multiple Web Front End servers, you need to repeat this operation on each.
 
-The basic configuration of the trust between SharePoint and Azure AD is now finished. Let's test it by signing-in with an Azure AD user.
+The basic configuration of the trust between SharePoint and Azure AD is now finished. Let's see how to sign-in to the SharePoint site as an Azure Active Directory user.
 
-## Sign-in to SharePoint site as a member user in Azure Active Directory
+## Sign-in as a member user
 
-Azure Active Directory has [2 type of users](https://docs.microsoft.com/en-us/azure/active-directory/active-directory-b2b-user-properties): Guest users and Member users. Let's start with a member user.
+Azure Active Directory has [2 type of users](https://docs.microsoft.com/en-us/azure/active-directory/active-directory-b2b-user-properties): Guest users and Member users. Let's start with a member user, which is merely a user that is homed in your organization.
 
 ### Create a member user in Azure Active Directory
 
@@ -203,47 +205,63 @@ Azure Active Directory has [2 type of users](https://docs.microsoft.com/en-us/az
 
     1. In the **Name** box, enter the user name. We used **TestUser**.
   
-    1. In the **User name** box, enter `TestUser@yourcompanydomain.extension`. This example shows `TestUser@contoso.com`.
+    1. In the **User name** box, enter `AzureUser1@<yourcompanytenant>.onmicrosoft.com`. This example shows `AzureUser1@demo1984.onmicrosoft.com`:
 
-       ![The User dialog box](./media/sharepoint-on-premises-tutorial/user-properties.png)
+       ![The User dialog box](./media/sharepoint-on-premises-tutorial/aad-new-user.png)
 
     1. Select the **Show password** check box, and then write down the value that appears in the **Password** box.
 
     1. Select **Create**.
 
-    1. You can now share the site with TestUser@contoso.com and permit this user to access it.
+    1. You can now share the site with `AzureUser1@demo1984.onmicrosoft.com` and permit this user to access it.
 
-## Create an Azure AD security group in the Azure portal
+### Grant permissions to the Azure Active Directory user in SharePoint
 
-1. Select **Azure Active Directory** > **Groups**.
+Sign-in to the SharePoint root site collection as your Windows account (site collection administrator) and click **Share**.  
+In the dialog, you need to type the exact value of the userprincipalname, for example `AzureUser1@demo1984.onmicrosoft.com`, and be careful to select the **name** claim result (move your mouse on a result to see its claim type):
 
-1. Select **New group**.
+![People picker results without AzureCP](./media/sharepoint-on-premises-tutorial/sp-peoplepickersearch-noazurecp.png)
 
-1. Fill in the **Group type**, **Group name**, **Group description**, and **Membership type** boxes. Select the arrows to select members, and then search for or select the members you want to add to the group. Choose **Select** to add the selected members, and then select **Create**.
+> [!IMPORTANT]
+> Be careful to type the exact value of the user you want to invite, and choose the appropriate claim type in the list, otherwise the sharing will not work.
 
-![Create an Azure AD security group](./media/sharepoint-on-premises-tutorial/new-group.png)
+This limitation is due to the fact that SharePoint does not validate the input from the people picker, which can be confusing and lead to misspellings or users accidentally choosing the wrong claim type.  
+To fix this scenario, an open-source solution called [AzureCP](https://yvand.github.io/AzureCP/) can be used to connect SharePoint 2019 / 2016 / 2013 with Azure Active Directory and resolve the input against your Azure Active Directory tenant. For more information, see [AzureCP](https://yvand.github.io/AzureCP/).
 
-### Grant permissions to an Azure AD account in SharePoint on-premises
+> [!IMPORTANT]
+> AzureCP isn't a Microsoft product and isn't supported by Microsoft Support. To download, install, and configure AzureCP on the on-premises SharePoint farm, see the [AzureCP](https://yvand.github.io/AzureCP/) website. 
 
-To grant access to an Azure AD user in SharePoint on-premises, share the site collection or add the Azure AD user to one of the site collection's groups. Users can now sign in to SharePoint 201x by using identities from Azure AD, but there are still opportunities for improvement to the user experience. For instance, searching for a user presents multiple search results in the people picker. There's a search result for each of the claims types that are created in the claim mapping. To choose a user by using the people picker, you must enter their user name exactly and choose the **name** claim result.
+> [!NOTE]
+> Here is how it looks like when AzureCP is configured: SharePoint returns actual users based on the input:
+>![People picker results with AzureCP](./media/sharepoint-on-premises-tutorial/sp-peoplepickersearch-withazurecp.png)
 
-![Claims search results](./media/sharepoint-on-premises-tutorial/claims-search-results.png)
-
-There's no validation on the values you search for, which can lead to misspellings or users accidentally choosing the wrong claim type. This situation can prevent users from successfully accessing resources.
-
-To fix this scenario with the people picker, an open-source solution called [AzureCP](https://yvand.github.io/AzureCP/) provides a custom claims provider for SharePoint 2013, 2016, and 2019. It uses the Microsoft Graph API to resolve what users enter and perform validation. For more information, see [AzureCP](https://yvand.github.io/AzureCP/).
 
   > [!NOTE]
   > Without AzureCP, you can add groups by adding the Azure AD group's ID, but this method isn't user friendly and reliable. Here's how it looks:
   > 
   >![Add an Azure AD group to a SharePoint group by ID](./media/sharepoint-on-premises-tutorial/adding-group-by-id.png)
+
+## Grant permissions to SharePoint through an Azure Active Directory security group
+
+### Create an Azure Active Directory security group in the Azure portal
+
+Let's create a security group in Azure Active Directory:
+
+1. Select **Azure Active Directory** > **Groups**.
+
+1. Select **New group**.
+
+1. Fill in the **Group type** (Security), **Group name** (for example, `AzureGroup1`), and **Membership type**. Add the user you created above as a member and click select **Create**:
+
+    ![Create an Azure AD security group](./media/sharepoint-on-premises-tutorial/aad-new-group.png)
+
+
   
 ### Grant permissions to an Azure AD group in SharePoint on-premises
 
 To assign Azure AD security groups to SharePoint on-premises, it's necessary to use a custom claims provider for SharePoint server. This example uses AzureCP.
 
- > [!NOTE]
- > AzureCP isn't a Microsoft product and isn't supported by Microsoft Support. To download, install, and configure AzureCP on the on-premises SharePoint farm, see the [AzureCP](https://yvand.github.io/AzureCP/) website. 
+
 
 1. Configure AzureCP on the SharePoint on-premises farm or an alternative custom claims provider solution. To configure AzureCP, see this [AzureCP](https://yvand.github.io/AzureCP/Register-App-In-AAD.html) website.
 
@@ -348,14 +366,9 @@ As a conclusion, to ensure that guest accounts are all identified with the same 
 
 1. In the **User Attributes & Claims** section, follow these steps:
 
-    1. Select **Unique User Identifier (Name ID)**, change its **Source Attribute** property to **user.localuserprincipalname**, and select **Save**.
+    1. Select **Unique User Identifier (Name ID)**, change its **Source Attribute** property to **user.localuserprincipalname**, and click **Save**.
     
-    1. Select **http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name**, change its **Source Attribute** property to **user.localuserprincipalname**, and select **Save**.
-
-    1. Additionally, delete the following claim types, which are useless since they are not used by SharePoint:
-        - `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress`
-        - `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname`
-        - `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname`
+    1. Select **http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name**, change its **Source Attribute** property to **user.localuserprincipalname**, and click **Save**.
     
     1. The **User Attributes & Claims** should look like this:
     
